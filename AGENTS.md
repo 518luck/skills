@@ -9,7 +9,7 @@
 ## 1. 核心原则
 
 - 以 Agent Skills 开放标准作为最低公共兼容层。
-- 默认只使用 OpenCode、Codex、Claude 都能安全消费的目录结构和 frontmatter。
+- 默认只使用 OpenCode、Claude 都能安全消费的目录结构和 frontmatter。
 - 只有用户明确要求某个平台专有能力时，才使用平台扩展字段或动态命令注入。
 - Skill 必须封装一个连贯、可复用的工作单元，不要把多个不相关能力塞进同一个 skill。
 - `SKILL.md` 只放每次执行都需要的核心指令；长文档、模板、脚本按需放到辅助目录。
@@ -51,11 +51,10 @@
 
 同一个 skill 要能被不同客户端使用，应遵循以下约束：
 
-| 客户端       | 推荐本地路径                                                                                           | 本仓库支持方式                                |
-| ------------ | ------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| OpenCode     | `.opencode/skills/<name>/SKILL.md`、`.agents/skills/<name>/SKILL.md`、`.claude/skills/<name>/SKILL.md` | 支持 `.well-known/skills/index.json` 远程发现 |
-| Claude Code  | `.claude/skills/<name>/SKILL.md`                                                                       | 使用标准 `SKILL.md` 结构，必要时用户自行复制  |
-| OpenAI Codex | `.agents/skills/<name>/SKILL.md`                                                                       | 使用标准 `SKILL.md` 结构，必要时用户自行复制  |
+| 客户端      | 推荐本地路径                                                                                           | 本仓库支持方式                                |
+| ----------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| OpenCode    | `.opencode/skills/<name>/SKILL.md`、`.agents/skills/<name>/SKILL.md`、`.claude/skills/<name>/SKILL.md` | 支持 `.well-known/skills/index.json` 远程发现 |
+| Claude Code | `.claude/skills/<name>/SKILL.md`                                                                       | 使用标准 `SKILL.md` 结构，必要时用户自行复制  |
 
 默认兼容层：
 
@@ -403,7 +402,6 @@ Claude Code 扩展字段：
 - 本仓库允许在适合手动触发的 skill 中使用 `` !`command` ``。
 - OpenCode 仅在斜杠命令调用时展开该语法；如果已通过配置禁止 AI 自动执行 skills，可以将动态注入作为 OpenCode 的推荐使用方式。
 - Claude Code 支持类似动态上下文注入，但具体行为以 Claude Code 文档为准。
-- Codex 和其他客户端不应假设支持动态注入；使用动态注入时，必须在正文中写明等价的手动命令或替代获取上下文方式。
 - 不要让 `` !`command` `` 成为唯一可理解的指令。即使占位符未展开，agent 也应知道需要收集哪些上下文。
 
 allowed-tools：

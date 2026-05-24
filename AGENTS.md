@@ -1,401 +1,426 @@
-# Skills 仓库 — Agent Skills 完整参考
+# Skills 制作规范
 
-> 本文件汇总了 Agent Skills 开放标准、OpenCode 实现、Claude Code 扩展功能的完整技术资料。
+本仓库用于维护可复用的 Agent Skills。AI 在本仓库中创建或修改 skill 时，必须遵循本文件，目标是产出同时兼容 OpenCode、OpenAI Codex、Claude Code 以及其他遵循 Agent Skills 开放标准的客户端的 skill。
 
----
-
-## 1. 信息来源
-
-| 来源                        | URL                                                             | 说明                                                 |
-| --------------------------- | --------------------------------------------------------------- | ---------------------------------------------------- |
-| **Agent Skills 开放标准**   | https://agentskills.io                                          | Anthropic 发起的跨产品开放标准，被 30+ AI 客户端支持 |
-| **Agent Skills 规范**       | https://agentskills.io/specification                            | SKILL.md 格式、frontmatter 字段、目录结构的完整定义  |
-| **Agent Skills 最佳实践**   | https://agentskills.io/skill-creation/best-practices            | 如何写好 skill 的指导                                |
-| **Agent Skills 快速入门**   | https://agentskills.io/skill-creation/quickstart                | 5 分钟创建第一个 skill                               |
-| **Claude Code Skills 文档** | https://code.claude.com/docs/en/skills                          | Claude Code 的完整 skills 文档（最详细）             |
-| **OpenCode Skills 文档**    | https://opencode.ai/docs/skills/                                | OpenCode 的 skills 文档                              |
-| **OpenCode Skills 源码**    | `packages/opencode/src/skill/`                                  | discovery.ts（远程拉取）、index.ts（注册发现）       |
-| **GitHub 示例仓库**         | https://github.com/anthropics/skills                            | Anthropic 官方示例 skills                            |
-| **skills-ref 校验工具**     | https://github.com/agentskills/agentskills/tree/main/skills-ref | 命令行校验工具                                       |
+详细背景资料保存在 `docs/面向AI的Skill制作操作手册.md` 和 `docs/agent-skills-overview.md`。本文件是执行规范，不是资料汇总。
 
 ---
 
-## 2. Agent Skills 开放标准（agentskills.io）
+## 1. 核心原则
 
-### 2.1 目录结构
+- 以 Agent Skills 开放标准作为最低公共兼容层。
+- 默认只使用 OpenCode、Codex、Claude 都能安全消费的目录结构和 frontmatter。
+- 只有用户明确要求某个平台专有能力时，才使用平台扩展字段或动态命令注入。
+- Skill 必须封装一个连贯、可复用的工作单元，不要把多个不相关能力塞进同一个 skill。
+- `SKILL.md` 只放每次执行都需要的核心指令；长文档、模板、脚本按需放到辅助目录。
+- 写项目特定、领域特定、容易出错的知识；不要解释 agent 已经知道的通用概念。
+- 优先给清晰默认流程，而不是罗列等价选项。
+- 每个 skill 都要有可执行的工作流、关键约束、必要的输出格式或验证方式。
 
+---
+
+## 2. 仓库结构
+
+本仓库的 canonical skill 位置是：
+
+```text
+.well-known/skills/<skill-name>/SKILL.md
 ```
-skill-name/
-├── SKILL.md          # 必须：元数据 + 指令
-├── scripts/          # 可选：可执行脚本
-├── references/       # 可选：参考文档
-├── assets/           # 可选：模板、资源
-└── ...               # 任意额外文件
+
+可选辅助目录：
+
+```text
+.well-known/skills/<skill-name>/
+├── SKILL.md
+├── references/   # 可选：长参考资料、API 说明、规则细节
+├── assets/       # 可选：模板、样例、静态资源
+└── scripts/      # 可选：可执行脚本或验证器
 ```
 
-### 2.2 SKILL.md 格式
+索引文件：
 
-SKILL.md 由 YAML frontmatter + Markdown 正文组成：
+```text
+.well-known/skills/index.json
+```
+
+不要在没有用户要求的情况下创建 `.opencode/skills/`、`.claude/skills/` 或 `.agents/skills/` 镜像目录。本仓库通过 `.well-known/skills/` 维护远程发布源。
+
+---
+
+## 3. 跨客户端兼容策略
+
+同一个 skill 要能被不同客户端使用，应遵循以下约束：
+
+| 客户端       | 推荐本地路径                                                                                           | 本仓库支持方式                                |
+| ------------ | ------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| OpenCode     | `.opencode/skills/<name>/SKILL.md`、`.agents/skills/<name>/SKILL.md`、`.claude/skills/<name>/SKILL.md` | 支持 `.well-known/skills/index.json` 远程发现 |
+| Claude Code  | `.claude/skills/<name>/SKILL.md`                                                                       | 使用标准 `SKILL.md` 结构，必要时用户自行复制  |
+| OpenAI Codex | `.agents/skills/<name>/SKILL.md`                                                                       | 使用标准 `SKILL.md` 结构，必要时用户自行复制  |
+
+默认兼容层：
+
+- 必须使用 `SKILL.md` 文件名。
+- 必须使用 YAML frontmatter + Markdown 正文。
+- 必须使用标准字段：`name`、`description`。
+- 可使用标准可选字段：`license`、`compatibility`、`metadata`。
+- 不默认使用 Claude 专有字段，如 `when_to_use`、`argument-hint`、`arguments`、`context`、`agent`、`hooks`、`model`、`effort`。
+- 不默认使用 `allowed-tools`，因为不同客户端的解释和权限模型不同。
+- 可以使用 `` !`command` `` 动态上下文注入。
+
+如果用户明确要求某个平台专用能力，必须在 `compatibility` 或正文中说明依赖和降级行为。
+
+---
+
+## 4. Skill 命名规则
+
+`skill-name` 必须满足：
+
+```text
+^[a-z0-9]+(-[a-z0-9]+)*$
+```
+
+要求：
+
+- 只能使用小写字母、数字、单个连字符。
+- 不能以连字符开头或结尾。
+- 不能出现连续连字符。
+- 长度不超过 64 个字符。
+- `SKILL.md` frontmatter 中的 `name` 必须与父目录名完全一致。
+- 名称应描述能力，不要使用泛泛名称，如 `helper`、`tools`、`workflow`。
+
+示例：
+
+```text
+english-to-chinese
+git-commit
+weekly-report
+api-review
+database-migration
+```
+
+---
+
+## 5. Frontmatter 规范
+
+最小模板：
 
 ```markdown
 ---
 name: skill-name
-description: 描述这个 skill 做什么、何时使用它。
+description: 一句话说明这个 skill 做什么，以及用户在什么场景下应该触发它。
 license: MIT
-compatibility: Designed for Claude Code (or similar products)
-metadata:
-  author: example-org
-  version: "1.0"
-allowed-tools: Bash(git:*) Bash(jq:*) Read
 ---
-
-## 指令正文
-
-这里是 agent 激活 skill 后读取的完整指令...
 ```
 
-### 2.3 Frontmatter 字段（开放标准规范）
+允许字段：
 
-| 字段            | 必填 | 约束                                                                               | 说明                                       |
-| --------------- | ---- | ---------------------------------------------------------------------------------- | ------------------------------------------ |
-| `name`          | 是   | 1-64 字符，小写字母+数字+连字符，不以 `-` 开头/结尾，无连续 `--`，必须匹配父目录名 | skill 标识符                               |
-| `description`   | 是   | 1-1024 字符                                                                        | 描述功能和触发时机，agent 据此决定是否激活 |
-| `license`       | 否   | 短文本                                                                             | 许可证名称或引用                           |
-| `compatibility` | 否   | 1-500 字符                                                                         | 环境要求（目标产品、系统包、网络等）       |
-| `metadata`      | 否   | string→string 键值对                                                               | 任意扩展元数据                             |
-| `allowed-tools` | 否   | 空格分隔字符串                                                                     | 预授权工具列表（实验性）                   |
+| 字段            | 必填 | 规则                                   |
+| --------------- | ---- | -------------------------------------- |
+| `name`          | 是   | 必须匹配父目录名，符合命名正则         |
+| `description`   | 是   | 1-1024 字符，必须包含能力和触发场景    |
+| `license`       | 否   | 建议使用 `MIT`，除非用户指定其他许可证 |
+| `compatibility` | 否   | 说明平台、系统依赖、脚本依赖或专有能力 |
+| `metadata`      | 否   | string 到 string 的键值对              |
 
-### 2.4 name 字段校验规则
+`description` 写法要求：
 
-正则：`^[a-z0-9]+(-[a-z0-9]+)*$`
+- 写具体任务和触发条件。
+- 包含用户可能说出的关键词。
+- 使用第三人称或客观描述。
+- 如果 skill 只应在窄场景使用，写明 `Use ONLY when...` 或中文等价表述。
+- 不要写 `Helps with code`、`Improves workflow`、`Useful tool` 这类泛泛描述。
 
-- 有效：`pdf-processing`、`data-analysis`、`code-review`
-- 无效：`PDF-Processing`（大写）、`-pdf`（以连字符开头）、`pdf--processing`（连续连字符）
+好例子：
 
-### 2.5 渐进式加载（Progressive Disclosure）
+```yaml
+description: 根据最近 7 天的 Git 提交记录生成中文周报表格。当用户要求写周报、生成周报、总结本周工作或汇报工作进度时使用。
+```
 
-1. **发现**（~100 tokens）：启动时只加载 `name` + `description`
-2. **激活**（建议 <5000 tokens）：任务匹配时加载完整 SKILL.md 正文
-3. **执行**（按需）：按需加载 scripts/、references/、assets/ 中的文件
+坏例子：
 
-建议 SKILL.md 正文保持在 **500 行以内**，详细参考资料放到单独文件中。
-
-### 2.6 校验工具
-
-```bash
-skills-ref validate ./my-skill
+```yaml
+description: 帮助处理项目任务。
 ```
 
 ---
 
-## 3. OpenCode 实现
+## 6. SKILL.md 正文结构
 
-### 3.1 Skill 存放位置
+推荐结构：
 
-OpenCode 搜索以下路径的 `*/SKILL.md`：
+````markdown
+# Skill 标题
 
-| 位置                | 路径                                        | 作用域   |
-| ------------------- | ------------------------------------------- | -------- |
-| 项目配置            | `.opencode/skills/<name>/SKILL.md`          | 当前项目 |
-| 全局配置            | `~/.config/opencode/skills/<name>/SKILL.md` | 所有项目 |
-| Claude 兼容（项目） | `.claude/skills/<name>/SKILL.md`            | 当前项目 |
-| Claude 兼容（全局） | `~/.claude/skills/<name>/SKILL.md`          | 所有项目 |
-| Agent 兼容（项目）  | `.agents/skills/<name>/SKILL.md`            | 当前项目 |
-| Agent 兼容（全局）  | `~/.agents/skills/<name>/SKILL.md`          | 所有项目 |
+一句话说明此 skill 的目标。
 
-优先级：企业 > 全局 > 项目。同名 skill 以高优先级为准。
+## 使用场景
 
-### 3.2 远程 Skills 发现（index.json）
+- 何时使用
+- 何时不要使用
 
-OpenCode 启动时通过 `skills.urls` 配置拉取远程 skills。
+## 工作流程
 
-**配置方式**（`opencode.json` / `opencode.jsonc`）：
+1. 第一步
+2. 第二步
+3. 第三步
 
-```json
-{
-  "skills": {
-    "urls": ["https://518luck.github.io/skills/.well-known/skills/"]
-  }
-}
+## 规则
+
+- 必须遵守的约束
+- 不允许的行为
+
+## 输出格式
+
+```markdown
+[可复制的输出模板]
 ```
 
-**index.json 格式**（源码：`discovery.ts`）：
+## 验证
+
+- 如何检查结果是否正确
+
+## 注意事项
+
+- 具体陷阱或边缘情况
+````
+
+正文要求：
+
+- 保持简洁，优先小于 500 行和 5000 tokens。
+- 使用明确的步骤、检查清单、模板和示例。
+- 写 agent 没有 skill 时容易不知道或容易做错的内容。
+- 对脆弱步骤使用精确指令；对灵活步骤说明目标和判断标准。
+- 多步骤任务必须写验证循环：执行、验证、修复、再验证。
+- 输出有固定格式时，必须给模板。
+- 涉及风险、边缘情况、项目约定时，必须添加 `注意事项` 或 `Gotchas`。
+- 不要把完整长文档直接塞进 `SKILL.md`。
+
+---
+
+## 7. 渐进式加载
+
+当内容较多时，必须拆分：
+
+- `references/`：长规则、API 文档、错误码、领域资料。
+- `assets/`：报告模板、配置模板、示例输入输出。
+- `scripts/`：可复用脚本、解析器、验证器。
+
+`SKILL.md` 中引用辅助文件时，必须说明何时读取：
+
+```markdown
+如果 API 返回非 200 状态码，读取 `references/api-errors.md` 并按错误码表处理。
+```
+
+不要只写：
+
+```markdown
+更多信息见 references。
+```
+
+---
+
+## 8. 脚本规范
+
+只有在脚本能显著降低重复错误时才添加 `scripts/`。
+
+适合打包脚本的场景：
+
+- agent 每次都会重复实现同一段解析或转换逻辑。
+- 有明确输入输出和可验证结果。
+- 操作容易出错，脚本比自然语言指令更可靠。
+- 需要验证生成物格式或一致性。
+
+脚本要求：
+
+- 脚本必须相对 skill 目录引用。
+- 在 `SKILL.md` 中说明运行命令、输入、输出和失败处理。
+- 不要要求不存在的全局依赖；如有依赖，写入 `compatibility` 或正文。
+- 不要在脚本中执行破坏性操作，除非用户明确要求且 workflow 包含确认和验证步骤。
+
+---
+
+## 9. index.json 规范
+
+每新增、删除或移动 skill，都必须更新：
+
+```text
+.well-known/skills/index.json
+```
+
+格式：
 
 ```json
 {
   "skills": [
     {
       "name": "skill-name",
-      "files": ["SKILL.md", "references/guide.md"]
+      "files": ["SKILL.md"]
     }
   ]
 }
 ```
 
-| 字段             | 说明                                                            |
-| ---------------- | --------------------------------------------------------------- |
-| `skills`         | skill 列表（数组）                                              |
-| `skills[].name`  | skill 目录名，用于拼接下载 URL                                  |
-| `skills[].files` | 需要下载的文件列表，**必须包含 `SKILL.md`**（否则该条目被跳过） |
-
-**下载逻辑**：
-
-- 请求 `<base-url>/index.json` 解析
-- 过滤掉 `files` 中不含 `SKILL.md` 的条目
-- 对每个 skill，下载 `<base-url>/<name>/<file>` 到本地缓存 `~/.cache/opencode/skills/<name>/`
-- 缓存存在则跳过下载
-
-### 3.3 OpenCode Frontmatter 字段
-
-OpenCode 识别的 frontmatter 字段（比开放标准更严格）：
-
-| 字段            | 必填 | 说明                 |
-| --------------- | ---- | -------------------- |
-| `name`          | 是   | 必须匹配目录名       |
-| `description`   | 是   | 1-1024 字符          |
-| `license`       | 否   | 许可证               |
-| `compatibility` | 否   | 环境兼容性           |
-| `metadata`      | 否   | string→string 键值对 |
-
-未知字段被忽略。
-
-### 3.4 权限控制
+如果 skill 包含辅助文件，必须全部列入 `files`：
 
 ```json
 {
-  "permission": {
-    "skill": {
-      "*": "allow",
-      "pr-review": "allow",
-      "internal-*": "deny",
-      "experimental-*": "ask"
-    }
-  }
+  "name": "skill-name",
+  "files": [
+    "SKILL.md",
+    "references/guide.md",
+    "assets/template.md",
+    "scripts/validate.sh"
+  ]
 }
 ```
 
-| 值      | 行为             |
-| ------- | ---------------- |
-| `allow` | 直接加载         |
-| `deny`  | 隐藏，拒绝访问   |
-| `ask`   | 需用户确认后加载 |
+规则：
 
-支持通配符：`internal-*` 匹配 `internal-docs`、`internal-tools` 等。
-
-### 3.5 禁用 skill 工具
-
-```json
-{
-  "agent": {
-    "plan": {
-      "tools": { "skill": false }
-    }
-  }
-}
-```
-
-### 3.6 内置 Skill
-
-OpenCode 内置了一个 `customize-opencode` skill，当用户编辑 opencode 自身配置时自动激活。
+- `files` 必须包含 `SKILL.md`。
+- `name` 必须等于 skill 目录名。
+- `files` 中路径必须相对于 skill 目录。
+- 不要列出不存在的文件。
+- 不要遗漏 `references/`、`assets/`、`scripts/` 下会被 skill 引用的文件。
 
 ---
 
-## 4. Claude Code 扩展功能
+## 10. 创建 Skill 的工作流
 
-> Claude Code 实现了 Agent Skills 开放标准，并在此基础上增加了许多扩展字段和功能。
+当用户要求创建新 skill 时，按以下顺序执行：
 
-### 4.1 额外 Frontmatter 字段
+1. 明确 skill 的目标、触发场景、输入、输出和边界。
+2. 从用户资料、现有文档、真实任务记录中提取领域特定知识。
+3. 选择符合正则的 `skill-name`。
+4. 创建 `.well-known/skills/<skill-name>/SKILL.md`。
+5. 必要时创建 `references/`、`assets/`、`scripts/`。
+6. 更新 `.well-known/skills/index.json`。
+7. 检查 frontmatter、命名、索引、引用路径和兼容性。
+8. 如果仓库有校验工具，运行校验；否则至少人工检查本文件的清单。
 
-| 字段                       | 说明                                                                        |
-| -------------------------- | --------------------------------------------------------------------------- |
-| `when_to_use`              | 附加触发上下文（追加到 description，共享 1536 字符上限）                    |
-| `argument-hint`            | 自动补全时的参数提示，如 `[issue-number]`                                   |
-| `arguments`                | 命名位置参数，用于 `$name` 替换                                             |
-| `disable-model-invocation` | `true` = 禁止 Claude 自动加载，仅手动 `/name` 触发                          |
-| `user-invocable`           | `false` = 从 `/` 菜单隐藏，仅 Claude 可调用                                 |
-| `model`                    | 激活时切换的模型                                                            |
-| `effort`                   | 激活时的推理深度：`low`/`medium`/`high`/`xhigh`/`max`                       |
-| `context`                  | 设为 `fork` 则在子代理中运行                                                |
-| `agent`                    | `context: fork` 时指定子代理类型（`Explore`、`Plan`、`general-purpose` 等） |
-| `hooks`                    | 绑定到此 skill 生命周期的钩子                                               |
-| `paths`                    | Glob 模式，限制 skill 仅在匹配路径时自动激活                                |
-| `shell`                    | `bash`（默认）或 `powershell`                                               |
+当用户要求修改已有 skill 时：
 
-### 4.2 字符串替换变量
+1. 先阅读现有 `SKILL.md` 和相关辅助文件。
+2. 保持原有兼容层，不要无故引入平台专有字段。
+3. 最小化修改范围。
+4. 如果新增或删除辅助文件，同步更新 `index.json`。
+5. 检查描述是否仍然准确触发。
 
-| 变量                   | 说明                         |
-| ---------------------- | ---------------------------- |
-| `$ARGUMENTS`           | 调用时传入的所有参数         |
-| `$ARGUMENTS[N]` / `$N` | 第 N 个参数（0-based）       |
-| `$name`                | `arguments` 中声明的命名参数 |
-| `${CLAUDE_SESSION_ID}` | 当前会话 ID                  |
-| `${CLAUDE_EFFORT}`     | 当前推理深度                 |
-| `${CLAUDE_SKILL_DIR}`  | 当前 skill 目录路径          |
+---
 
-### 4.3 动态上下文注入
+## 11. 质量检查清单
 
-行内命令（`` !`command` ``）在 skill 内容发送给 Claude **之前**执行，输出替换占位符：
+提交前必须逐项检查：
 
-```markdown
-## PR 上下文
+- skill 目录名符合 `^[a-z0-9]+(-[a-z0-9]+)*$`。
+- `SKILL.md` 文件名大小写正确。
+- frontmatter 使用合法 YAML。
+- `name` 与父目录名完全一致。
+- `description` 具体说明能力和触发场景。
+- 没有默认加入 Claude-only 或 OpenCode-only 字段。
+- 如果使用 `` !`command` `` 动态注入，已说明手动调用场景和不支持客户端的替代步骤。
+- 正文是可执行工作流，而不是泛泛建议。
+- 正文没有解释通用常识。
+- 长内容已拆到 `references/`、`assets/` 或 `scripts/`。
+- 引用的辅助文件真实存在。
+- `index.json` 包含新 skill。
+- `index.json` 的 `files` 包含 `SKILL.md` 和所有被引用的辅助文件。
+- 输出格式有模板，复杂任务有验证步骤。
+- 注意事项记录了容易出错的项目特定事实。
 
-- PR diff: !`gh pr diff`
-- 变更文件: !`gh pr diff --name-only`
-```
+---
 
-多行命令使用 fenced code block：
+## 12. 标准模板
+
+新建 skill 时优先从此模板开始：
 
 ````markdown
-```!
-node --version
-npm --version
-git status --short
-```
-````
-
-### 4.4 skillOverrides 设置
-
-从设置中覆盖 skill 可见性：
-
-```json
-{
-  "skillOverrides": {
-    "legacy-context": "name-only",
-    "deploy": "off"
-  }
-}
-```
-
-| 值                      | 对 Claude 可见 | 在 `/` 菜单 |
-| ----------------------- | -------------- | ----------- |
-| `"on"`                  | 名称+描述      | 是          |
-| `"name-only"`           | 仅名称         | 是          |
-| `"user-invocable-only"` | 隐藏           | 是          |
-| `"off"`                 | 隐藏           | 隐藏        |
-
-### 4.5 skill 内容生命周期
-
-- 激活后内容在会话中持续存在
-- 自动压缩时，重新附加最近一次调用的 skill（前 5000 tokens）
-- 多个 skill 共享 25000 tokens 的组合预算
-
-### 4.6 Skill 存放位置（Claude Code）
-
-| 级别 | 路径                               |
-| ---- | ---------------------------------- |
-| 企业 | 通过 managed settings 部署         |
-| 个人 | `~/.claude/skills/<name>/SKILL.md` |
-| 项目 | `.claude/skills/<name>/SKILL.md`   |
-| 插件 | `<plugin>/skills/<name>/SKILL.md`  |
-
+---
+name: skill-name
+description: 说明这个 skill 做什么，以及用户在什么场景下应该触发它。
+license: MIT
 ---
 
-## 5. 本仓库（518luck/skills）的实际配置
+# Skill 标题
 
-### 5.1 仓库结构
+一句话说明此 skill 的目标。
 
+## 使用场景
+
+- 当用户要求 ... 时使用。
+- 不要在 ... 时使用。
+
+## 工作流程
+
+1. 收集必要上下文。
+2. 按项目约定执行核心步骤。
+3. 验证结果是否符合要求。
+4. 向用户输出最终结果或变更摘要。
+
+## 规则
+
+- 必须 ...
+- 不要 ...
+
+## 输出格式
+
+```markdown
+[在这里放固定输出模板]
 ```
-skills/
-├── .nojekyll                                    # 空文件，防止 GitHub Pages 用 Jekyll 处理
-├── .well-known/
-│   └── skills/
-│       ├── index.json                           # skill 索引
-│       ├── english-to-chinese/
-│       │   └── SKILL.md                         # 英译中 skill
-│       └── git-commit/
-│           └── SKILL.md                         # git commit skill
-└── README.md
-```
 
-### 5.2 index.json 当前内容
+## 验证
+
+- 检查 ...
+- 如果验证失败，修复后重新验证。
+
+## 注意事项
+
+- 记录 agent 容易做错的具体事实。
+````
+
+`index.json` 条目模板：
 
 ```json
 {
-  "skills": [
-    {
-      "name": "english-to-chinese",
-      "files": ["SKILL.md"]
-    },
-    {
-      "name": "git-commit",
-      "files": ["SKILL.md"]
-    }
-  ]
-}
-```
-
-### 5.3 在 OpenCode 中使用
-
-在 `~/.config/opencode/opencode.jsonc` 中添加：
-
-```jsonc
-{
-  "skills": {
-    "urls": ["https://518luck.github.io/skills/.well-known/skills/"],
-  },
-}
-```
-
-重启 OpenCode 或清除缓存 `~/.cache/opencode/skills/` 使远程 skills 生效。
-
-### 5.4 添加新 skill 的步骤
-
-1. 创建 `.well-known/skills/<skill-name>/SKILL.md`
-2. 在 `index.json` 的 `skills` 数组中添加条目：
-
-```json
-{
-  "name": "<skill-name>",
+  "name": "skill-name",
   "files": ["SKILL.md"]
 }
 ```
 
-3. 如有辅助文件，添加到 `files` 数组和对应目录：
+---
 
-```json
-{
-  "name": "my-skill",
-  "files": ["SKILL.md", "references/guide.md"]
-}
-```
+## 13. 平台扩展使用规则
 
-4. `git add` + `git commit` + `git push`
-5. 清除本地缓存 `rm -rf ~/.cache/opencode/skills/` 或等缓存自然过期
+默认不要使用平台扩展。确需使用时遵循以下规则。
+
+Claude Code 扩展字段：
+
+- 只有用户明确要求 Claude 专用功能时才添加。
+- 添加后必须在 `compatibility` 中说明，例如 `Requires Claude Code for arguments/frontmatter extensions`。
+- 不要让核心 workflow 依赖 Claude-only 字段；尽量提供普通客户端也能读懂的正文说明。
+
+动态上下文注入：
+
+- 本仓库允许在适合手动触发的 skill 中使用 `` !`command` ``。
+- OpenCode 仅在斜杠命令调用时展开该语法；如果已通过配置禁止 AI 自动执行 skills，可以将动态注入作为 OpenCode 的推荐使用方式。
+- Claude Code 支持类似动态上下文注入，但具体行为以 Claude Code 文档为准。
+- Codex 和其他客户端不应假设支持动态注入；使用动态注入时，必须在正文中写明等价的手动命令或替代获取上下文方式。
+- 不要让 `` !`command` `` 成为唯一可理解的指令。即使占位符未展开，agent 也应知道需要收集哪些上下文。
+
+allowed-tools：
+
+- 默认不要写。
+- 只有用户要求某客户端的预授权工具能力时才写。
+- 写入后必须说明兼容性影响。
 
 ---
 
-## 6. 兼容性矩阵
+## 14. 禁止事项
 
-本仓库的 skills 兼容所有支持 Agent Skills 开放标准的产品：
-
-| 产品              | skill 路径                                                  | 支持远程 index.json      |
-| ----------------- | ----------------------------------------------------------- | ------------------------ |
-| OpenCode          | `.opencode/skills/` / `.claude/skills/` / `.agents/skills/` | 是（通过 `skills.urls`） |
-| Claude Code       | `.claude/skills/`                                           | 否（本地 only）          |
-| VS Code + Copilot | `.agents/skills/`                                           | 否                       |
-| Cursor            | `.agents/skills/`                                           | 否                       |
-| Gemini CLI        | `.agents/skills/`                                           | 否                       |
-| OpenAI Codex      | `.agents/skills/`                                           | 否                       |
-| JetBrains Junie   | `.agents/skills/`                                           | 否                       |
-
-> 远程 skills 发现（index.json）目前是 OpenCode 独有功能。
-> 其他产品需要将 skills 文件放在本地目录中。
-
----
-
-## 7. SKILL.md 编写最佳实践
-
-### Do
-
-- description 要具体，包含触发关键词："英译中"→"Translates English text to Chinese. Use when the user asks to translate English to Chinese, or when working with bilingual content."
-- 正文保持简洁，步骤化，避免叙述性解释
-- 将详细参考资料放到 `references/` 目录，在 SKILL.md 中引用
-- 用 Gotchas（陷阱）列表记录容易出错的地方
-- 提供输出模板，agent 对具体结构的匹配比文字描述更可靠
-
-### Don't
-
-- 不要写 agent 已经知道的东西（什么是 PDF、HTTP 怎么工作等）
-- 不要让 SKILL.md 超过 500 行
-- 不要在 description 中写泛泛之词（"Helps with code"）
-- 不要在同一个 skill 中塞入过多不相关的功能
+- 不要创建没有明确触发场景的 skill。
+- 不要把一个 skill 写成通用助手人格或泛化开发指南。
+- 不要复制整篇外部文档到 `SKILL.md`。
+- 不要默认加入平台专有字段来追求“功能更全”。
+- 不要引用不存在的脚本、模板或参考文件。
+- 不要在未更新 `index.json` 的情况下新增或删除 skill 文件。
+- 不要为了兼容性创建多份内容不同的 `SKILL.md`。
+- 不要在没有用户明确要求时执行 git commit、push 或发布操作。

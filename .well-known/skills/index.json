@@ -5,6 +5,12 @@
             "files": [
                 "SKILL.md"
             ]
+        },
+        {
+            "name": "git-commit",
+            "files": [
+                "SKILL.md"
+            ]
         }
     ]
 }

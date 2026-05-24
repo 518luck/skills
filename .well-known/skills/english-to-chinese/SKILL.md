@@ -1,18 +1,18 @@
 ---
 name: english-to-chinese
-description: Use when translating English text into natural, accurate Simplified Chinese while preserving meaning, tone, formatting, and technical terms.
+description: 将英文文本翻译为自然、准确的中文，保留原文含义、语气、格式和技术术语。
 ---
 
-# English to Chinese Translation
+# 英文到中文翻译
 
-Use this skill when the user asks to translate English text into Simplified Chinese.
+当用户要求将英文文本翻译为简体中文时使用此技能。
 
-## Goals
+## 目标
 
-- Translate English into natural, accurate Simplified Chinese.
-- Preserve the original meaning, tone, formatting, Markdown structure, code blocks, and links.
-- Keep technical terms consistent.
-- Do not add explanations unless the user asks.
+- 将英文翻译为自然、准确的中文。
+- 保留原文含义、语气、格式、Markdown 结构、代码块和链接。
+- 保持技术术语一致。
+- 除非用户要求，否则不要添加解释。
 
 ## 中文翻译要求
 

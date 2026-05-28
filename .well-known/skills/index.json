@@ -1,6 +1,12 @@
 {
     "skills": [
         {
+            "name": "agents-md-writer",
+            "files": [
+                "SKILL.md"
+            ]
+        },
+        {
             "name": "english-to-chinese",
             "files": [
                 "SKILL.md"

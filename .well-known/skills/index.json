@@ -3,7 +3,10 @@
         {
             "name": "agents-md-writer",
             "files": [
-                "SKILL.md"
+                "SKILL.md",
+                "references/root-agents.md",
+                "references/nested-agents.md",
+                "references/maintain-agents.md"
             ]
         },
         {

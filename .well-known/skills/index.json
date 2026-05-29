@@ -16,7 +16,7 @@
             ]
         },
         {
-            "name": "git-commit",
+            "name": "git-save",
             "files": [
                 "SKILL.md"
             ]
